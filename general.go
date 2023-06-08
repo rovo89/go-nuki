@@ -26,6 +26,8 @@ type Config struct {
 	publicKey     nacl.Key
 	nukiPublicKey []byte
 	authId        command.AuthorizationId
+
+	pin command.Pin
 }
 
 type Client struct {
@@ -40,7 +42,17 @@ type Client struct {
 func NewConfig(addr ble.Addr) *Config {
 	return &Config{
 		addr: addr,
+		pin: command.NoPin,
 	}
+}
+
+func (cfg *Config) WithPin(pin string) error {
+	parsedPin, err := command.NewPin(pin)
+	if err != nil {
+		return err
+	}
+	cfg.pin = parsedPin
+	return nil
 }
 
 // WithTimeout sets the timeout which is used for each response waiting.
@@ -179,12 +191,15 @@ func (c *Client) PerformAction(ctx context.Context, actionBuilder func(nonce []b
 	return nil
 }
 
-func (c *Client) checkPreconditionAndParsePin(pin string) (command.Pin, error) {
+func (c *Client) checkPrecondition() error {
 	if c.client == nil {
-		return 0, ConnectionNotEstablishedError
+		return ConnectionNotEstablishedError
 	}
 	if c.udioCom == nil {
-		return 0, UnauthenticatedError
+		return UnauthenticatedError
 	}
-	return command.NewPin(pin)
+	if c.config.pin == command.NoPin {
+		return nil
+	}
+	return nil
 }

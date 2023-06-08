@@ -10,6 +10,7 @@ import (
 var InvalidPinError = fmt.Errorf("the given pin is invalid")
 
 type Pin uint16
+const NoPin = Pin(0xFFFF)
 
 func NewPin(pin string) (Pin, error) {
 	if len(pin) != 4 || hex.DecodedLen(len(pin)) != 2 {

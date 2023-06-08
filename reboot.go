@@ -8,8 +8,8 @@ import (
 
 // Reboot will trigger a reboot of the connected device.
 // After the reboot you have to re-establish the connection to the device via EstablishConnection!
-func (c *Client) Reboot(ctx context.Context, pin string) error {
-	parsedPin, err := c.checkPreconditionAndParsePin(pin)
+func (c *Client) Reboot(ctx context.Context) error {
+	err := c.checkPrecondition()
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (c *Client) Reboot(ctx context.Context, pin string) error {
 		return fmt.Errorf("error while waiting for challenge: %w", err)
 	}
 
-	err = c.udioCom.Send(command.NewRequestReboot(parsedPin, challenge.AsChallengeCommand().Nonce()))
+	err = c.udioCom.Send(command.NewRequestReboot(c.config.pin, challenge.AsChallengeCommand().Nonce()))
 	if err != nil {
 		return fmt.Errorf("unable to send action: %w", err)
 	}

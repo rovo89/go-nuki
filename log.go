@@ -7,8 +7,8 @@ import (
 )
 
 // ReadLogEntriesCount will return the count of persisting logs.
-func (c *Client) ReadLogEntriesCount(ctx context.Context, pin string) (command.LogEntryCountCommand, error) {
-	parsedPin, err := c.checkPreconditionAndParsePin(pin)
+func (c *Client) ReadLogEntriesCount(ctx context.Context) (command.LogEntryCountCommand, error) {
+	err := c.checkPrecondition()
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func (c *Client) ReadLogEntriesCount(ctx context.Context, pin string) (command.L
 		return nil, fmt.Errorf("error while waiting for challenge: %w", err)
 	}
 	err = c.udioCom.Send(command.NewRequestLogEntriesCountCommand(
-		parsedPin,
+		c.config.pin,
 		challenge.AsChallengeCommand().Nonce(),
 	))
 	if err != nil {
@@ -49,8 +49,8 @@ func (c *Client) ReadLogEntriesCount(ctx context.Context, pin string) (command.L
 
 // ReadLogEntryStream will start consume the persisted logs from the device. While the callback function will be called
 // foreach received log entry. This function is blocking which mean it will return after the log receiving is done.
-func (c *Client) ReadLogEntryStream(ctx context.Context, start uint32, count uint16, order command.LogSortOrder, pin string, clb func(command.LogEntryCommand)) error {
-	parsedPin, err := c.checkPreconditionAndParsePin(pin)
+func (c *Client) ReadLogEntryStream(ctx context.Context, start uint32, count uint16, order command.LogSortOrder, clb func(command.LogEntryCommand)) error {
+	err := c.checkPrecondition()
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (c *Client) ReadLogEntryStream(ctx context.Context, start uint32, count uin
 		start,
 		count,
 		order,
-		parsedPin,
+		c.config.pin,
 		challenge.AsChallengeCommand().Nonce(),
 	))
 	if err != nil {
@@ -94,9 +94,9 @@ func (c *Client) ReadLogEntryStream(ctx context.Context, start uint32, count uin
 
 // ReadLogEntries will return the persisted log entries from the device. All logentries will be saved in memory! For a huge
 // load of log entries consider the usage of ReadLogEntryStream instead.
-func (c *Client) ReadLogEntries(ctx context.Context, start uint32, count uint16, order command.LogSortOrder, pin string) ([]command.LogEntryCommand, error) {
+func (c *Client) ReadLogEntries(ctx context.Context, start uint32, count uint16, order command.LogSortOrder) ([]command.LogEntryCommand, error) {
 	result := make([]command.LogEntryCommand, 0, count)
-	err := c.ReadLogEntryStream(ctx, start, count, order, pin, func(logEntry command.LogEntryCommand) {
+	err := c.ReadLogEntryStream(ctx, start, count, order, func(logEntry command.LogEntryCommand) {
 		result = append(result, logEntry)
 	})
 
@@ -104,23 +104,23 @@ func (c *Client) ReadLogEntries(ctx context.Context, start uint32, count uint16,
 }
 
 // EnableLogging will enable the logging on the connected nuki device.
-func (c *Client) EnableLogging(ctx context.Context, pin string) error {
-	return c.SetLogging(ctx, pin, true)
+func (c *Client) EnableLogging(ctx context.Context) error {
+	return c.SetLogging(ctx, true)
 }
 
 // DisableLogging will disable the logging on the connected nuki device.
-func (c *Client) DisableLogging(ctx context.Context, pin string) error {
-	return c.SetLogging(ctx, pin, false)
+func (c *Client) DisableLogging(ctx context.Context) error {
+	return c.SetLogging(ctx, false)
 }
 
 // SetLogging will set the logging on the connected nuki device.
-func (c *Client) SetLogging(ctx context.Context, pin string, enable bool) error {
-	parsedPin, err := c.checkPreconditionAndParsePin(pin)
+func (c *Client) SetLogging(ctx context.Context, enable bool) error {
+	err := c.checkPrecondition()
 	if err != nil {
 		return err
 	}
 
 	return c.PerformAction(ctx, func(nonce []byte) command.Command {
-		return command.NewEnableLogging(enable, parsedPin, nonce)
+		return command.NewEnableLogging(enable, c.config.pin, nonce)
 	})
 }

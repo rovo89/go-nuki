@@ -8,14 +8,14 @@ import (
 )
 
 // UpdateTime set the given time on the connected device.
-func (c *Client) UpdateTime(ctx context.Context, pin string, t time.Time) error {
-	parsedPin, err := c.checkPreconditionAndParsePin(pin)
+func (c *Client) UpdateTime(ctx context.Context, t time.Time) error {
+	err := c.checkPrecondition()
 	if err != nil {
 		return err
 	}
 
 	return c.PerformAction(ctx, func(nonce []byte) command.Command {
-		return command.NewUpdateTime(t, parsedPin, nonce)
+		return command.NewUpdateTime(t, c.config.pin, nonce)
 	})
 }
 
