@@ -92,7 +92,8 @@ func (c *Client) Pair(ctx context.Context, privateKey, publicKey nacl.Key, id co
 	}
 
 	//done
-	err = c.Authenticate(privateKey, publicKey, nukiPublicKey, authIdResp.AsAuthorizationIdCommand().AuthorizationId())
+	c.config.WithAuthentication(privateKey, publicKey, nukiPublicKey, authIdResp.AsAuthorizationIdCommand().AuthorizationId())
+	err = c.Authenticate()
 	if err != nil {
 		return fmt.Errorf("error while authenticate: %w", err)
 	}
@@ -100,34 +101,37 @@ func (c *Client) Pair(ctx context.Context, privateKey, publicKey nacl.Key, id co
 	return nil
 }
 
+func (cfg *Config) WithAuthentication(privateKey, publicKey nacl.Key, nukiPublicKey []byte, authId command.AuthorizationId) *Config {
+	cfg.privateKey = privateKey
+	cfg.publicKey = publicKey
+	cfg.nukiPublicKey = nukiPublicKey
+	cfg.authId = authId
+	return cfg
+}
+
+func (cfg *Config) HasAuthentication() bool {
+	return cfg.nukiPublicKey != nil
+}
+
 // Authenticate will use the given authentication data and use them for further communication to nuki device.
 // The data should be the same which is used for pairing before.
-func (c *Client) Authenticate(privateKey, publicKey nacl.Key, nukiPublicKey []byte, authId command.AuthorizationId) error {
-	c.privateKey = privateKey
-	c.publicKey = publicKey
-	c.nukiPublicKey = nukiPublicKey
-	c.authId = authId
-
+func (c *Client) Authenticate() error {
 	var err error
 	c.udioCom, err = communication.NewUserSpecificDataIOCommunicator(
 		c.client,
-		uint32(authId),
-		(*privateKey)[:],
-		nukiPublicKey,
+		uint32(c.config.authId),
+		(*c.config.privateKey)[:],
+		c.config.nukiPublicKey,
 	)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // AuthenticationId will return the authId which was generated after the pairing process. See Pair.
-func (c *Client) AuthenticationId() command.AuthorizationId {
-	return c.authId
+func (cfg *Config) AuthenticationId() command.AuthorizationId {
+	return cfg.authId
 }
 
 // PublicKey will return the public key of the connected nuki device.
-func (c *Client) PublicKey() []byte {
-	return c.nukiPublicKey
+func (cfg *Config) PublicKey() []byte {
+	return cfg.nukiPublicKey
 }

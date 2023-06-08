@@ -19,24 +19,27 @@ var UnauthenticatedError = fmt.Errorf("the client is not authenticated")
 // InvalidPinError will be returned if the given pin is invalid
 var InvalidPinError = fmt.Errorf("the given pin is invalid")
 
-type Client struct {
-	client          ble.Client
-	responseTimeout time.Duration
+type Config struct {
+	addr ble.Addr
 
 	privateKey    nacl.Key
 	publicKey     nacl.Key
 	nukiPublicKey []byte
 	authId        command.AuthorizationId
+}
 
+type Client struct {
+	config          *Config
+	responseTimeout time.Duration
+
+	client  ble.Client
 	gdioCom communication.Communicator
 	udioCom communication.Communicator
 }
 
-func NewClient(bleDevice ble.Device) *Client {
-	ble.SetDefaultDevice(bleDevice)
-
-	return &Client{
-		responseTimeout: 10 * time.Second,
+func NewConfig(addr ble.Addr) *Config {
+	return &Config{
+		addr: addr,
 	}
 }
 
@@ -48,24 +51,34 @@ func (c *Client) WithTimeout(duration time.Duration) *Client {
 
 // EstablishConnection establish a connection to the given nuki device.
 // Returns an error if there was a problem with connecting to the device.
-func (c *Client) EstablishConnection(ctx context.Context, deviceAddress ble.Addr) error {
-	bleClient, err := ble.Dial(ctx, deviceAddress)
+func (cfg *Config) EstablishConnection(ctx context.Context, bleDevice ble.Device) (*Client, error) {
+	ble.SetDefaultDevice(bleDevice)
+
+	c := &Client{
+		config: cfg,
+		responseTimeout: 10 * time.Second,
+	}
+
+	bleClient, err := ble.Dial(ctx, cfg.addr)
 	if err != nil {
-		return fmt.Errorf("error while establish connection: %w", err)
+		return nil, fmt.Errorf("error while establish connection: %w", err)
 	}
 	c.client = bleClient
 
 	c.gdioCom, err = communication.NewGeneralDataIOCommunicator(bleClient)
 	if err != nil {
-		return fmt.Errorf("error while establish communication: %w", err)
+		return nil, fmt.Errorf("error while establish communication: %w", err)
 	}
 
 	//in case of "re-establish" a connection (for example after reboot the device)
-	if c.nukiPublicKey != nil {
-		return c.Authenticate(c.privateKey, c.publicKey, c.nukiPublicKey, c.authId)
+	if cfg.HasAuthentication() {
+		err = c.Authenticate()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return nil
+	return c, nil
 }
 
 // GetDeviceType will return the discovered type of the connected device.
