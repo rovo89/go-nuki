@@ -52,14 +52,12 @@ func (c *Client) WithTimeout(duration time.Duration) *Client {
 // EstablishConnection establish a connection to the given nuki device.
 // Returns an error if there was a problem with connecting to the device.
 func (cfg *Config) EstablishConnection(ctx context.Context, bleDevice ble.Device) (*Client, error) {
-	ble.SetDefaultDevice(bleDevice)
-
 	c := &Client{
 		config: cfg,
 		responseTimeout: 10 * time.Second,
 	}
 
-	bleClient, err := ble.Dial(ctx, cfg.addr)
+	bleClient, err := bleDevice.Dial(ctx, cfg.addr)
 	if err != nil {
 		return nil, fmt.Errorf("error while establish connection: %w", err)
 	}
